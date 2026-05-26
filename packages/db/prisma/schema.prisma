@@ -1,0 +1,190 @@
+// file: packages/db/prisma/schema.prisma
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  CUSTOMER
+  WAREHOUSE_OPERATOR
+  SUPPORT_SPECIALIST
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAID
+  PROCESSING         // In preparation by warehouse
+  READY_TO_SHIP      // Packed, label applied
+  SHIPPED            // Handed over to logistics carrier
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum ShipmentStatus {
+  LABEL_CREATED
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  EXCEPTION
+}
+
+model User {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String
+  firstName    String
+  lastName     String
+  role         Role        @default(CUSTOMER)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  
+  // Relations
+  addresses    Address[]
+  orders       Order[]
+  cart         Cart?
+  auditLogs    AuditLog[]
+}
+
+model Address {
+  id           String   @id @default(uuid())
+  userId       String
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isDefault    Boolean  @default(false)
+  label        String   // e.g., "Home", "Office"
+  street1      String
+  street2      String?
+  city         String
+  state        String
+  postalCode   String
+  country      String
+  phone        String
+  
+  // Relations
+  shipments    Shipment[]
+  orders       Order[]    @relation("ShippingAddress")
+}
+
+model Product {
+  id          String   @id @default(uuid())
+  sku         String   @unique
+  name        String
+  description String
+  price       Decimal  @db.Decimal(10, 2)
+  weightKg    Float    // For shipping rate calculation
+  dimensions  Json     // { widthCm: Float, heightCm: Float, depthCm: Float }
+  images      String[]
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relations
+  inventory   InventoryItem?
+  orderItems  OrderItem[]
+  cartItems   CartItem[]
+}
+
+model InventoryItem {
+  id          String   @id @default(uuid())
+  productId   String   @unique
+  product     Product  @relation(fields: [productId], references: [id], onDelete: Cascade)
+  quantity    Int      @default(0) // Physical count in warehouse
+  reserved    Int      @default(0) // Allocated to unpaid or packing orders
+  location    String   // Warehouse aisle/shelf locator, e.g., "Aisle 4, Shelf B1"
+  updatedAt   DateTime @updatedAt
+}
+
+model Cart {
+  id        String     @id @default(uuid())
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  
+  // Relations
+  items     CartItem[]
+}
+
+model CartItem {
+  id        String   @id @default(uuid())
+  cartId    String
+  cart      Cart     @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product  @relation(fields: [productId], references: [id])
+  quantity  Int
+  createdAt DateTime @default(now())
+
+  @@unique([cartId, productId])
+}
+
+model Order {
+  id                String      @id @default(uuid())
+  orderNumber       String      @unique // Human-readable sequence, e.g. ELEC-10024
+  userId            String
+  user              User        @relation(fields: [userId], references: [id])
+  shippingAddressId String
+  shippingAddress   Address     @relation("ShippingAddress", fields: [shippingAddressId], references: [id])
+  status            OrderStatus @default(PENDING_PAYMENT)
+  totalItemsPrice   Decimal     @db.Decimal(10, 2)
+  shippingCost      Decimal     @db.Decimal(10, 2)
+  taxCost           Decimal     @db.Decimal(10, 2)
+  totalAmount       Decimal     @db.Decimal(10, 2)
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+
+  // Relations
+  items             OrderItem[]
+  shipments         Shipment[]
+  transactions      Transaction[]
+}
+
+model OrderItem {
+  id          String   @id @default(uuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int
+  pricePaid   Decimal  @db.Decimal(10, 2) // Price locked at checkout
+}
+
+model Shipment {
+  id                String         @id @default(uuid())
+  orderId           String
+  order             Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  destinationAddressId String
+  destinationAddress Address       @relation(fields: [destinationAddressId], references: [id])
+  carrier           String         // e.g., "FedEx", "DHL", "UPS"
+  trackingNumber    String?        @unique
+  shippingLabelUrl  String?
+  estimatedDelivery DateTime?
+  status            ShipmentStatus @default(LABEL_CREATED)
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+}
+
+model Transaction {
+  id            String   @id @default(uuid())
+  orderId       String
+  order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  gateway       String   // e.g., "Stripe"
+  transactionId String   @unique // Gateway reference ID
+  amount        Decimal  @db.Decimal(10, 2)
+  status        String   // e.g., "succeeded", "failed", "refunded"
+  createdAt     DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String?
+  user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action    String   // e.g., "UPDATE_INVENTORY", "CANCEL_ORDER"
+  details   String   // JSON string of differences
+  createdAt DateTime @default(now())
+}

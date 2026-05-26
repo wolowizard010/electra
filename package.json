@@ -1,0 +1,17 @@
+{
+  "name": "electra-monorepo",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Electra - Full-stack E-commerce & Logistics Platform",
+  "scripts": {
+    "dev": "pnpm --filter web dev",
+    "build": "pnpm --recursive build",
+    "db:generate": "pnpm --filter @electra/db db:generate",
+    "db:push": "pnpm --filter @electra/db db:push",
+    "db:studio": "pnpm --filter @electra/db db:studio"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.41",
+    "typescript": "^5.4.5"
+  }
+}
