@@ -1,0 +1,12 @@
+{
+  "name": "@electra/orders",
+  "version": "1.0.0",
+  "main": "src/index.ts",
+  "private": true,
+  "dependencies": {
+    "@electra/db": "workspace:*",
+    "@electra/inventory": "workspace:*",
+    "@electra/payments": "workspace:*",
+    "@electra/notifications": "workspace:*"
+  }
+}

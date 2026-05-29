@@ -13,7 +13,13 @@
     "react": "19.2.4",
     "react-dom": "19.2.4",
     "@electra/db": "workspace:*",
-    "@electra/auth": "workspace:*"
+    "@electra/auth": "workspace:*",
+    "@electra/catalog": "workspace:*",
+    "@electra/inventory": "workspace:*",
+    "@electra/payments": "workspace:*",
+    "@electra/orders": "workspace:*",
+    "@electra/shipping": "workspace:*",
+    "@electra/notifications": "workspace:*"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
