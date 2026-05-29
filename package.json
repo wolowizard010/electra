@@ -6,9 +6,9 @@
   "scripts": {
     "dev": "pnpm --filter web dev",
     "build": "pnpm --recursive build",
-    "db:generate": "pnpm --filter @electra/db db:generate",
-    "db:push": "pnpm --filter @electra/db db:push",
-    "db:studio": "pnpm --filter @electra/db db:studio"
+    "db:generate": "npx prisma@5.22.0 generate --schema=packages/db/prisma/schema.prisma",
+    "db:push": "npx prisma@5.22.0 db push --schema=packages/db/prisma/schema.prisma",
+    "db:studio": "npx prisma@5.22.0 studio --schema=packages/db/prisma/schema.prisma"
   },
   "devDependencies": {
     "@types/node": "^20.19.41",
