@@ -5,5 +5,8 @@
   "private": true,
   "devDependencies": {
     "@types/nodemailer": "^8.0.0"
+  },
+  "dependencies": {
+    "nodemailer": "^6.9.0"
   }
 }
