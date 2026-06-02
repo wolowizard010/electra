@@ -1,0 +1,1 @@
+import { PrismaClient } from '@prisma/client'; const prisma = new PrismaClient(); async function main() { const p = await prisma.product.findUnique({ where: { sku: 'ELEC-TWS-001' } }); console.log(JSON.stringify(p, null, 2)); } main().finally(() => prisma.$disconnect());

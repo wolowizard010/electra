@@ -39,7 +39,7 @@ export async function POST(
         carrier: 'India Post',
         service: 'Speed Post',
         ratePaid: 110,
-        labelUrl: 'https://electra-logistics.s3.ap-south-1.amazonaws.com/labels/label_mock_da60.pdf',
+        labelUrl: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
         estimatedDelivery: new Date(Date.now() + 3600000 * 24 * 4).toISOString(),
       };
       

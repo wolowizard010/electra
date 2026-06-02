@@ -76,14 +76,69 @@ export default function CheckoutPage() {
   const handlePlaceOrder = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) return;
+
+    if (!form.fullName || !form.street1 || !form.city || !form.state || !form.postalCode) {
+      setError('Please fill in all required shipping address fields.');
+      return;
+    }
+
     setLoading(true);
     setError(null);
     try {
+      // 1. Save Address
+      const addressRes = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName: form.fullName.split(' ')[0] || '',
+          lastName: form.fullName.split(' ').slice(1).join(' ') || '',
+          address: {
+            street1: form.street1,
+            street2: form.street2,
+            city: form.city,
+            state: form.state,
+            postalCode: form.postalCode,
+            phone: form.phone,
+          }
+        })
+      });
+      const addressData = await addressRes.json();
+      if (!addressData.addressId) throw new Error('Failed to save shipping address');
+
+      // 1.5 Sync Cart
+      const syncRes = await fetch('/api/cart/sync', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: items.map(i => ({ id: i.id, quantity: i.quantity })) })
+      });
+      if (!syncRes.ok) throw new Error('Failed to sync cart to server');
+
+      // 2. Initiate Checkout
+      const initRes = await fetch('/api/orders/checkout/initiate', { method: 'POST' });
+      const initData = await initRes.json();
+      if (!initRes.ok) throw new Error(initData.error || 'Failed to initiate checkout');
+
+      // Simulate payment delay
       await new Promise((r) => setTimeout(r, 1200));
+
+      // 3. Confirm Checkout with Mock Payment
+      const confirmRes = await fetch('/api/orders/checkout/confirm', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          razorpayOrderId: initData.checkoutSession.razorpayOrderId,
+          razorpayPaymentId: 'pay_mock_' + Date.now(),
+          razorpaySignature: 'mock_valid_signature_2026',
+          shippingAddressId: addressData.addressId
+        })
+      });
+      const confirmData = await confirmRes.json();
+      if (!confirmRes.ok) throw new Error(confirmData.error || 'Failed to confirm checkout');
+
       clearCart();
       setPlaced(true);
-    } catch {
-      setError('Something went wrong. Please try again.');
+    } catch (err: any) {
+      setError(err.message || 'Something went wrong. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -97,7 +152,7 @@ export default function CheckoutPage() {
           <div className="text-5xl mb-4">🔒</div>
           <h1 className="text-2xl font-black text-white mb-2">Sign In Required</h1>
           <p className="text-slate-400 mb-6">You need to be signed in to checkout.</p>
-          <Link href="/login" className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-colors">Sign In</Link>
+          <Link href="/login?redirect=/checkout" className="px-6 py-3 bg-blue-600 hover:bg-blue-500 text-white font-bold rounded-xl transition-colors">Sign In</Link>
         </div>
       </div>
     );
@@ -137,8 +192,8 @@ export default function CheckoutPage() {
   }
 
   const shipping = totalPrice >= 999 ? 0 : 99;
-  const tax = Math.round(totalPrice * 0.18);
-  const grandTotal = totalPrice + shipping + tax;
+  const tax = totalPrice - (totalPrice / 1.18);
+  const grandTotal = totalPrice + shipping;
 
   return (
     <div className="min-h-screen text-slate-100 py-10">
@@ -266,7 +321,6 @@ export default function CheckoutPage() {
                     <span>Shipping</span>
                     <span className={shipping === 0 ? 'text-emerald-400 font-semibold' : 'text-white'}>{shipping === 0 ? 'FREE' : `₹${shipping}`}</span>
                   </div>
-                  <div className="flex justify-between text-slate-400"><span>GST (18%)</span><span className="text-white">₹{tax.toLocaleString('en-IN')}</span></div>
                   <div className="border-t border-white/5 pt-3 flex justify-between items-center">
                     <span className="font-bold text-white">Total</span>
                     <span className="text-xl font-black text-blue-400">₹{grandTotal.toLocaleString('en-IN')}</span>

@@ -32,10 +32,15 @@ export async function middleware(request: NextRequest) {
 
     // Role Enforcement
     if (isAdminRoute && payload.role !== 'ADMIN') {
-      if (pathname.startsWith('/api/')) {
-        return NextResponse.json({ error: 'Forbidden: Insufficient privileges' }, { status: 403 });
+      const allowedForOperator = payload.role === 'WAREHOUSE_OPERATOR' && 
+        (pathname.startsWith('/api/admin/orders') || pathname.startsWith('/api/admin/inventory'));
+      
+      if (!allowedForOperator) {
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json({ error: 'Forbidden: Insufficient privileges' }, { status: 403 });
+        }
+        return NextResponse.redirect(new URL('/unauthorized', request.url));
       }
-      return NextResponse.redirect(new URL('/unauthorized', request.url));
     }
 
     if (isWarehouseRoute && payload.role !== 'ADMIN' && payload.role !== 'WAREHOUSE_OPERATOR') {

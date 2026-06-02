@@ -36,9 +36,9 @@ export default async function ShopPage() {
               const priceINR = parseFloat(product.price.toString());
               const image = product.images?.[0];
 
-              let stockLabel = { text: `In Stock (${available})`, cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' };
+              let stockLabel: { text: string; cls: string } | null = null;
               if (available <= 0) stockLabel = { text: 'Out of Stock', cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' };
-              else if (available <= 3) stockLabel = { text: `Only ${available} left`, cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
+              else if (available <= 5) stockLabel = { text: `Only ${available} left`, cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
 
               return (
                 <Link
@@ -62,9 +62,11 @@ export default async function ShopPage() {
                       </div>
                     )}
                     {/* Stock badge overlay */}
-                    <div className={`absolute top-3 left-3 px-2 py-1 rounded-full text-xs font-semibold border ${stockLabel.cls}`}>
-                      {stockLabel.text}
-                    </div>
+                    {stockLabel && (
+                      <div className={`absolute top-3 left-3 px-2 py-1 rounded-full text-xs font-semibold border ${stockLabel.cls}`}>
+                        {stockLabel.text}
+                      </div>
+                    )}
                   </div>
 
                   {/* Info */}

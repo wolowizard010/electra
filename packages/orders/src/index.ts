@@ -13,8 +13,8 @@ export interface CheckoutSessionResult {
   taxCost: number;
 }
 
-const SHIPPING_FLAT_RATE = 15.00;
-const TAX_RATE = 0.10; // 10%
+const SHIPPING_FLAT_RATE = 99; // ₹99
+const TAX_RATE = 0.18; // 18% GST
 
 /**
  * Stage 1: Initiates checkout session.
@@ -38,8 +38,9 @@ export async function initiateCheckout(userId: string): Promise<CheckoutSessionR
     totalItemsPrice += parseFloat(item.product.price.toString()) * item.quantity;
   }
   
-  const taxCost = totalItemsPrice * TAX_RATE;
-  const totalAmount = totalItemsPrice + SHIPPING_FLAT_RATE + taxCost;
+  const taxCost = totalItemsPrice - (totalItemsPrice / (1 + TAX_RATE));
+  const shippingCost = totalItemsPrice >= 999 ? 0 : SHIPPING_FLAT_RATE;
+  const totalAmount = totalItemsPrice + shippingCost;
 
   // 3. Database transaction to reserve stock
   await db.$transaction(async (tx) => {
@@ -52,14 +53,14 @@ export async function initiateCheckout(userId: string): Promise<CheckoutSessionR
   });
 
   // 4. Generate Razorpay Order outside the database transaction
-  const rzpOrder = await createRazorpayOrder(totalAmount, 'USD');
+  const rzpOrder = await createRazorpayOrder(totalAmount, 'INR');
 
   return {
     razorpayOrderId: rzpOrder.id,
     amount: rzpOrder.amount,
     currency: rzpOrder.currency,
     totalItemsPrice,
-    shippingCost: SHIPPING_FLAT_RATE,
+    shippingCost: totalItemsPrice >= 999 ? 0 : SHIPPING_FLAT_RATE,
     taxCost,
   };
 }
@@ -104,8 +105,9 @@ export async function confirmCheckout(
   for (const item of cart.items) {
     totalItemsPrice += parseFloat(item.product.price.toString()) * item.quantity;
   }
-  const taxCost = totalItemsPrice * TAX_RATE;
-  const totalAmount = totalItemsPrice + SHIPPING_FLAT_RATE + taxCost;
+  const taxCost = totalItemsPrice - (totalItemsPrice / (1 + TAX_RATE));
+  const shippingCost = totalItemsPrice >= 999 ? 0 : SHIPPING_FLAT_RATE;
+  const totalAmount = totalItemsPrice + shippingCost;
 
   const orderNumber = 'ELEC-' + crypto.randomInt(100000, 999999).toString();
 
@@ -119,7 +121,7 @@ export async function confirmCheckout(
         shippingAddressId,
         status: 'PAID',
         totalItemsPrice,
-        shippingCost: SHIPPING_FLAT_RATE,
+        shippingCost,
         taxCost,
         totalAmount,
         items: {

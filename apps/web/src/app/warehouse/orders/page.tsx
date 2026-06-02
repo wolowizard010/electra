@@ -197,7 +197,7 @@ export default function WarehouseOrdersPage() {
 
                     <div className="pt-4 border-t border-slate-800/50 mt-4 md:mt-0">
                       <div className="text-xs font-bold text-slate-500">Value Charged</div>
-                      <div className="text-lg font-black text-slate-100">${order.totalAmount.toFixed(2)}</div>
+                      <div className="text-lg font-black text-slate-100">₹{Number(order.totalAmount).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 })}</div>
                     </div>
                   </div>
 

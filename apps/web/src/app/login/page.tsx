@@ -27,7 +27,10 @@ export default function LoginPage() {
       }
 
       // Full page navigation so Navbar re-mounts and reads the new session cookie
-      if (data.user.role === 'WAREHOUSE_OPERATOR' || data.user.role === 'ADMIN') {
+      const redirectUrl = new URLSearchParams(window.location.search).get('redirect');
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+      } else if (data.user.role === 'WAREHOUSE_OPERATOR' || data.user.role === 'ADMIN') {
         window.location.href = '/warehouse/orders';
       } else {
         window.location.href = '/shop';

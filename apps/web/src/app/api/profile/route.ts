@@ -49,6 +49,7 @@ export async function PUT(request: NextRequest) {
     });
 
     // Upsert default address if provided
+    let addressId = null;
     if (address) {
       const existing = await db.address.findFirst({
         where: { userId: payload.id, isDefault: true },
@@ -67,13 +68,15 @@ export async function PUT(request: NextRequest) {
       };
 
       if (existing) {
-        await db.address.update({ where: { id: existing.id }, data: addressData });
+        const updated = await db.address.update({ where: { id: existing.id }, data: addressData });
+        addressId = updated.id;
       } else {
-        await db.address.create({ data: { userId: payload.id, ...addressData } });
+        const created = await db.address.create({ data: { userId: payload.id, ...addressData } });
+        addressId = created.id;
       }
     }
 
-    return NextResponse.json({ success: true, firstName: user.firstName, lastName: user.lastName });
+    return NextResponse.json({ success: true, firstName: user.firstName, lastName: user.lastName, addressId });
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
   }

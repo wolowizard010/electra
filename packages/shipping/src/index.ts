@@ -123,7 +123,7 @@ export async function purchaseCheapestLabel(
   const trackingNumber = `EL-${carrierCode}-${randomSuffix}`;
   
   const labelHash = crypto.randomBytes(6).toString('hex');
-  const labelUrl = `https://electra-logistics.s3.ap-south-1.amazonaws.com/labels/label_${labelHash}.pdf`;
+  const labelUrl = 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf'; // Mock PDF
 
   const estimatedDelivery = new Date();
   estimatedDelivery.setDate(estimatedDelivery.getDate() + cheapestRate.estimatedDays);

@@ -1,41 +1,64 @@
 import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
+import nodemailer from 'nodemailer';
 
 /**
- * Sends a generic HTML email.
- * Simulates delivery by writing the HTML payload to a local "local_emails" directory 
- * and logging the transmission receipt to standard console.
+ * Sends a generic HTML email using Gmail.
  */
 export async function sendEmail(to: string, subject: string, html: string): Promise<boolean> {
   try {
-    // 1. Create simulated delivery directory in the workspace
-    const mailDir = path.join(process.cwd(), 'local_emails');
-    if (!fs.existsSync(mailDir)) {
-      fs.mkdirSync(mailDir, { recursive: true });
+    const user = process.env.EMAIL_USER;
+    const pass = process.env.EMAIL_PASS;
+
+    if (!user || !pass) {
+      console.warn('EMAIL_USER or EMAIL_PASS is not set. Falling back to local simulated email.');
+      // 1. Create simulated delivery directory in the workspace
+      const mailDir = path.join(process.cwd(), 'local_emails');
+      if (!fs.existsSync(mailDir)) {
+        fs.mkdirSync(mailDir, { recursive: true });
+      }
+
+      const emailId = crypto.randomBytes(4).toString('hex');
+      const safeSubject = subject.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
+      const fileName = `email_${emailId}_to_${to.replace('@', '_at_')}_subj_${safeSubject}.html`;
+      const filePath = path.join(mailDir, fileName);
+
+      // 2. Write file
+      const content = `
+        <!--
+          SIMULATED EMAIL TRANSMISSION RECEIPT
+          TO: ${to}
+          SUBJECT: ${subject}
+          TIMESTAMP: ${new Date().toISOString()}
+        -->
+        ${html}
+      `;
+      fs.writeFileSync(filePath, content, 'utf8');
+
+      console.log(`[EMAIL DISPATCH] Sent to: ${to} | Subject: "${subject}" | Saved receipt: local_emails/${fileName}`);
+      return true;
     }
 
-    const emailId = crypto.randomBytes(4).toString('hex');
-    const safeSubject = subject.replace(/[^a-zA-Z0-9]/g, '_').substring(0, 30);
-    const fileName = `email_${emailId}_to_${to.replace('@', '_at_')}_subj_${safeSubject}.html`;
-    const filePath = path.join(mailDir, fileName);
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {
+        user,
+        pass,
+      },
+    });
 
-    // 2. Write file
-    const content = `
-      <!--
-        SIMULATED EMAIL TRANSMISSION RECEIPT
-        TO: ${to}
-        SUBJECT: ${subject}
-        TIMESTAMP: ${new Date().toISOString()}
-      -->
-      ${html}
-    `;
-    fs.writeFileSync(filePath, content, 'utf8');
+    const info = await transporter.sendMail({
+      from: `"Electra Private Ltd." <${user}>`,
+      to,
+      subject,
+      html,
+    });
 
-    console.log(`[EMAIL DISPATCH] Sent to: ${to} | Subject: "${subject}" | Saved receipt: local_emails/${fileName}`);
+    console.log(`[EMAIL DISPATCH] Sent real email to: ${to} | Subject: "${subject}" | MessageId: ${info.messageId}`);
     return true;
   } catch (error) {
-    console.error('Failed to dispatch simulated email:', error);
+    console.error('Failed to dispatch email:', error);
     return false;
   }
 }
@@ -56,22 +79,6 @@ export async function sendOrderInvoice(
   }
 ): Promise<boolean> {
   const subject = `Electra Order Confirmation - ${details.orderNumber}`;
-  
-  const itemsHtml = details.items
-    .map(
-      (item) => `
-      <tr style="border-bottom: 1px solid #1e293b;">
-        <td style="padding: 12px 0; color: #e2e8f0; font-size: 14px;">
-          <div style="font-weight: bold;">${item.name}</div>
-          <div style="font-size: 11px; color: #64748b; font-family: monospace;">SKU: ${item.sku}</div>
-        </td>
-        <td style="padding: 12px 0; text-align: center; color: #94a3b8; font-size: 14px;">${item.quantity}</td>
-        <td style="padding: 12px 0; text-align: right; color: #60a5fa; font-weight: bold; font-size: 14px;">$${item.price.toFixed(2)}</td>
-      </tr>
-    `
-    )
-    .join('');
-
   const html = `
     <!DOCTYPE html>
     <html>
@@ -84,7 +91,7 @@ export async function sendOrderInvoice(
         
         <!-- Logo/Header -->
         <div style="text-align: center; border-bottom: 1px solid #1e293b; padding-bottom: 24px; mb-24px;">
-          <h1 style="margin: 0; font-size: 28px; font-weight: 800; background: linear-gradient(to right, #60a5fa, #818cf8); -webkit-background-clip: text; color: #60a5fa; tracking-tight: -0.025em;">ELECTRA</h1>
+          <h1 style="margin: 0; font-size: 28px; font-weight: 800; color: #3b82f6; letter-spacing: -0.025em;">ELECTRA</h1>
           <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 12px; uppercase; letter-spacing: 0.1em;">Order Receipt</p>
         </div>
 
@@ -112,11 +119,20 @@ export async function sendOrderInvoice(
             <tr style="border-bottom: 1px solid #1e293b;">
               <th style="padding: 10px 0; text-align: left; color: #64748b; font-size: 11px; text-transform: uppercase;">Item</th>
               <th style="padding: 10px 0; text-align: center; color: #64748b; font-size: 11px; text-transform: uppercase;">Qty</th>
-              <th style="padding: 10px 0; text-align: right; color: #64748b; font-size: 11px; text-transform: uppercase;">Price</th>
+              <th style="padding: 10px 0; text-align: right; color: #64748b; font-size: 11px; text-transform: uppercase;">Price (Excl. GST)</th>
             </tr>
           </thead>
           <tbody>
-            ${itemsHtml}
+            ${details.items.map(item => `
+              <tr style="border-bottom: 1px solid #1e293b;">
+                <td style="padding: 12px 0; color: #e2e8f0; font-size: 14px;">
+                  <div style="font-weight: bold;">${item.name}</div>
+                  <div style="font-size: 11px; color: #64748b; font-family: monospace;">SKU: ${item.sku}</div>
+                </td>
+                <td style="padding: 12px 0; text-align: center; color: #94a3b8; font-size: 14px;">${item.quantity}</td>
+                <td style="padding: 12px 0; text-align: right; color: #60a5fa; font-weight: bold; font-size: 14px;">₹${(item.price / 1.18).toFixed(2)}</td>
+              </tr>
+            `).join('')}
           </tbody>
         </table>
 
@@ -125,19 +141,19 @@ export async function sendOrderInvoice(
           <table style="width: 100%; border-collapse: collapse; font-size: 13px; color: #94a3b8;">
             <tr>
               <td style="padding: 4px 0;">Items Subtotal:</td>
-              <td style="padding: 4px 0; text-align: right; color: #f8fafc;">$${details.totalItemsPrice.toFixed(2)}</td>
+              <td style="padding: 4px 0; text-align: right; color: #f8fafc;">₹${(details.totalItemsPrice - details.taxCost).toFixed(2)}</td>
             </tr>
             <tr>
-              <td style="padding: 4px 0;">Tax (10%):</td>
-              <td style="padding: 4px 0; text-align: right; color: #f8fafc;">$${details.taxCost.toFixed(2)}</td>
+              <td style="padding: 4px 0;">GST (18%):</td>
+              <td style="padding: 4px 0; text-align: right; color: #f8fafc;">₹${details.taxCost.toFixed(2)}</td>
             </tr>
             <tr>
-              <td style="padding: 4px 0;">Shipping (Flat):</td>
-              <td style="padding: 4px 0; text-align: right; color: #f8fafc;">$${details.shippingCost.toFixed(2)}</td>
+              <td style="padding: 4px 0;">Shipping:</td>
+              <td style="padding: 4px 0; text-align: right; color: #f8fafc;">₹${details.shippingCost.toFixed(2)}</td>
             </tr>
             <tr style="font-size: 16px; font-weight: bold; color: #f8fafc;">
               <td style="padding: 16px 0 0 0;">Total Amount Paid:</td>
-              <td style="padding: 16px 0 0 0; text-align: right; color: #60a5fa; font-size: 18px; font-weight: 900;">$${details.totalAmount.toFixed(2)}</td>
+              <td style="padding: 16px 0 0 0; text-align: right; color: #60a5fa; font-size: 18px; font-weight: 900;">₹${details.totalAmount.toFixed(2)}</td>
             </tr>
           </table>
         </div>
@@ -184,7 +200,7 @@ export async function sendShippingUpdate(
         
         <!-- Logo/Header -->
         <div style="text-align: center; border-bottom: 1px solid #1e293b; padding-bottom: 24px; margin-bottom: 24px;">
-          <h1 style="margin: 0; font-size: 28px; font-weight: 800; background: linear-gradient(to right, #34d399, #059669); -webkit-background-clip: text; color: #34d399; tracking-tight: -0.025em;">ELECTRA LOGISTICS</h1>
+          <h1 style="margin: 0; font-size: 28px; font-weight: 800; color: #10b981; letter-spacing: -0.025em;">ELECTRA LOGISTICS</h1>
           <p style="margin: 4px 0 0 0; color: #94a3b8; font-size: 12px; uppercase; letter-spacing: 0.1em;">Dispatch Alert</p>
         </div>
 
@@ -212,12 +228,7 @@ export async function sendShippingUpdate(
           </table>
         </div>
 
-        <!-- Call to Action -->
-        <div style="text-align: center; margin: 32px 0;">
-          <a href="${details.labelUrl}" target="_blank" style="background-color: #2563eb; color: #ffffff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: bold; font-size: 14px; display: inline-block; box-shadow: 0 4px 6px -1px rgba(37, 99, 235, 0.2);">
-            Download Shipping Invoice PDF
-          </a>
-        </div>
+        <!-- Call to Action (Removed Dummy PDF) -->
 
         <!-- Footer -->
         <div style="margin-top: 40px; border-top: 1px solid #1e293b; padding-top: 20px; text-align: center; font-size: 11px; color: #64748b;">

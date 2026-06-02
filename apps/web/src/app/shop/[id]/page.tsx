@@ -30,9 +30,9 @@ export default async function ProductPage({ params }: Props) {
   const image = product.images?.[0];
   const dims = product.dimensions as any;
 
-  let stockLabel = { text: `In Stock — ${available} units`, cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' };
+  let stockLabel = { text: 'In Stock', cls: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20' };
   if (available <= 0) stockLabel = { text: 'Out of Stock', cls: 'text-rose-400 bg-rose-500/10 border-rose-500/20' };
-  else if (available <= 3) stockLabel = { text: `Only ${available} left — order soon`, cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
+  else if (available <= 5) stockLabel = { text: `Only ${available} left — order soon`, cls: 'text-amber-400 bg-amber-500/10 border-amber-500/20' };
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100">
