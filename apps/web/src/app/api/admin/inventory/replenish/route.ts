@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Amount must be a positive integer' }, { status: 400 });
     }
 
-    const inventory = await db.inventory.update({
+    const inventory = await db.inventoryItem.update({
       where: { productId },
       data: {
         quantity: { increment: qtyToAdd }
